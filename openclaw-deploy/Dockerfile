@@ -3,6 +3,7 @@ FROM node:22-slim
 # 系统依赖：Python3（MCP server）+ envsubst（配置模板替换）+ curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    git \
     gettext-base \
     python3 \
     python3-pip \
