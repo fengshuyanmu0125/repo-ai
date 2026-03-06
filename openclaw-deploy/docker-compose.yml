@@ -1,0 +1,27 @@
+services:
+  openclaw:
+    build: .
+    container_name: openclaw
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "18789:18789"
+    volumes:
+      # workspace 挂载到宿主机，保留 Agent 记忆和会话
+      - ./workspace:/root/.openclaw/workspace
+      - openclaw_logs:/root/.openclaw/logs
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  market-report:
+    build: ./jobs/market-report
+    container_name: market-report
+    restart: unless-stopped
+    env_file: .env
+
+volumes:
+  openclaw_logs:

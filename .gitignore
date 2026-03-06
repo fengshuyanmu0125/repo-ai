@@ -1,0 +1,6 @@
+# 通用
+.DS_Store
+*.log
+__pycache__/
+
+# 各子项目自己的 .env 等由子目录 .gitignore 处理

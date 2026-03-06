@@ -1,0 +1,20 @@
+# 密钥文件 — 绝对不要提交
+.env
+*.env.local
+
+# 真实凭证（包含 appId/appSecret/token）
+config/openclaw.json
+config/credentials/
+config/identity/
+config/devices/
+
+# 日志和缓存
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+
+# workspace 运行时数据（记忆、会话）
+workspace/memory/
+workspace/.git/
+workspace/.openclaw/
