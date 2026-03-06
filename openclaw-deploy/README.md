@@ -31,23 +31,31 @@ openclaw-deploy/
 ### 前置条件
 
 - Docker + Docker Compose（`curl -fsSL https://get.docker.com | sh`）
-- 飞书机器人已配置好 Webhook 事件订阅，回调地址指向服务器 `http://<IP>:18789`
+- 飞书机器人已配置好 Webhook 事件订阅，回调地址指向服务器 `http://<公网IP>:18789`
+- 服务器安全组/防火墙放行 **18789** 端口
 
-### 步骤
+### 步骤（克隆 → 配密钥 → Docker 运行）
 
 ```bash
-# 1. 克隆项目
-git clone <your-repo> openclaw-deploy && cd openclaw-deploy
+# 1. 克隆（HTTPS 或 SSH 二选一）
+git clone https://github.com/fengshuyanmu0125/repo-ai.git
+cd repo-ai/openclaw-deploy
 
-# 2. 配置密钥
+# 2. 配密钥
 cp .env.example .env
 vim .env   # 填写所有 API keys（见下方说明）
 
-# 3. 一键部署
+# 3. 一键构建并运行
 make deploy
 
-# 4. 查看日志
+# 4. 看日志
 make logs
+```
+
+若服务器已配置 GitHub SSH key，可用 SSH 克隆：
+```bash
+git clone git@github.com:fengshuyanmu0125/repo-ai.git
+cd repo-ai/openclaw-deploy
 ```
 
 ### .env 配置说明

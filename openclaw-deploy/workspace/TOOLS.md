@@ -1,27 +1,45 @@
 # TOOLS.md - Local Notes
 
-Skills define _how_ tools work. This file is for _your_ specifics — the stuff unique to this deployment.
+Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
 
-## MCP Servers
+## What Goes Here
 
-### us-market
-- Path: `/root/.openclaw/plugins/us-market/server.py`
-- Tools: `get_market_movers`, `get_stock_quote`, `get_stock_news`
-- Data source: Yahoo Finance (no API key needed)
+Things like:
 
-## Feishu
+- Camera names and locations
+- SSH hosts and aliases
+- Preferred voices for TTS
+- Speaker/room names
+- Device nicknames
+- Anything environment-specific
 
-- App ID: see `openclaw.json`
-- Channel: `main`
-- DM policy: allowlist (check `credentials/feishu-main-allowFrom.json`)
+## Examples
 
-## Commands (Native Skills)
+```markdown
+### Cameras
 
-- `美股行情` — 查询 S&P 100 涨跌榜（调用 us-market MCP）
+- living-room → Main area, 180° wide angle
+- front-door → Entrance, motion-triggered
 
-## Environment
+### SSH
 
-_(Add deployment-specific notes here: server IP, container names, cron schedules, etc.)_
+- home-server → 192.168.1.100, user: admin
+
+### TTS
+
+- Preferred voice: "Nova" (warm, slightly British)
+- Default speaker: Kitchen HomePod
+```
+
+## Why Separate?
+
+Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
+
+---
+
+### /finance 行情查询
+
+用户发 `/finance NVDA` 或 `/finance market` 时：**必须用 exec 工具**在 gateway 上执行 Python（本机已装 yfinance），**禁止**使用网页搜索、Brave API 或任何联网查行情。直接运行 skill 里给出的 Python 脚本即可。
 
 ---
 
