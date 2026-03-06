@@ -9,19 +9,36 @@ services:
     volumes:
       # workspace 挂载到宿主机，保留 Agent 记忆和会话
       - ./workspace:/root/.openclaw/workspace
+      # credentials/identity/devices 持久化（首次由 openclaw 自动生成）
+      - openclaw_credentials:/root/.openclaw/credentials
+      - openclaw_identity:/root/.openclaw/identity
+      - openclaw_devices:/root/.openclaw/devices
       - openclaw_logs:/root/.openclaw/logs
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:18789/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   market-report:
     build: ./jobs/market-report
     container_name: market-report
     restart: unless-stopped
     env_file: .env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
+  openclaw_credentials:
+  openclaw_identity:
+  openclaw_devices:
   openclaw_logs:

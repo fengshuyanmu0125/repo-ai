@@ -26,13 +26,13 @@ RUN npm install -g openclaw
 
 # ── 复制配置到 openclaw 目录 ───────────────────────────────────
 WORKDIR /root/.openclaw
+
+# 创建运行时目录（credentials/identity/devices 通过 volume 挂载）
+RUN mkdir -p credentials identity devices workspace/memory workspace/skills logs canvas
+
 COPY config/openclaw.tmpl.json  ./openclaw.tmpl.json
-COPY config/credentials/        ./credentials/
-COPY config/identity/           ./identity/
-COPY config/devices/            ./devices/
 COPY plugins/                   ./plugins/
 COPY workspace/                 ./workspace/
-RUN mkdir -p workspace/memory workspace/skills
 
 # ── 启动脚本 ──────────────────────────────────────────────────
 COPY docker-entrypoint.sh /usr/local/bin/entrypoint.sh
