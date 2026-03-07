@@ -350,21 +350,24 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """CoinGecko：BTC / ETH（免费，无 key）"""
+    """OKX API：BTC / ETH / SOL（免费，无 key，国内可访问）"""
     try:
-        r = requests.get(
-            "https://api.coingecko.com/api/v3/simple/price",
-            params={"ids": "bitcoin,ethereum,solana",
-                    "vs_currencies": "usd",
-                    "include_24hr_change": "true"},
-            timeout=10,
-        )
-        d = r.json()
-        return {
-            "BTC": {"price": d["bitcoin"]["usd"],  "change_pct": d["bitcoin"].get("usd_24h_change", 0)},
-            "ETH": {"price": d["ethereum"]["usd"],  "change_pct": d["ethereum"].get("usd_24h_change", 0)},
-            "SOL": {"price": d["solana"]["usd"],    "change_pct": d["solana"].get("usd_24h_change", 0)},
-        }
+        result = {}
+        symbols = {"BTC": "BTC-USDT", "ETH": "ETH-USDT", "SOL": "SOL-USDT"}
+        for name, inst_id in symbols.items():
+            r = requests.get(
+                "https://www.okx.com/api/v5/market/ticker",
+                params={"instId": inst_id},
+                timeout=10,
+            )
+            data = r.json()
+            if data.get("data"):
+                d = data["data"][0]
+                price = float(d["last"])
+                open_24h = float(d["open24h"])
+                change_pct = (price - open_24h) / open_24h * 100
+                result[name] = {"price": price, "change_pct": change_pct}
+        return result if result else None
     except Exception as e:
         print(f"  ⚠️ 加密行情: {e}")
         return None
