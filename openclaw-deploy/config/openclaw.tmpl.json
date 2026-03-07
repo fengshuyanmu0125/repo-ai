@@ -13,7 +13,9 @@
     "profiles": {
       "anthropic:default": {
         "provider": "anthropic",
-        "mode": "api_key"
+        "mode": "api_key",
+        "apiKey": "${ANTHROPIC_AUTH_TOKEN}",
+        "baseUrl": "${ANTHROPIC_BASE_URL}"
       }
     }
   },
