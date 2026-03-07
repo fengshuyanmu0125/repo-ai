@@ -34,7 +34,7 @@ class TLSAdapter(HTTPAdapter):
 FEISHU_APP_ID     = os.environ["FEISHU_APP_ID"]
 FEISHU_APP_SECRET = os.environ["FEISHU_APP_SECRET"]
 FEISHU_RECEIVE_ID = os.environ["FEISHU_RECEIVE_ID"]
-ANTHROPIC_TOKEN   = os.environ["ANTHROPIC_API_KEY"]
+ANTHROPIC_TOKEN   = os.environ["ANTHROPIC_AUTH_TOKEN"]
 ANTHROPIC_URL     = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 FINNHUB_TOKEN     = os.environ["FINNHUB_TOKEN"]
 TOP_N             = int(os.environ.get("TOP_N", "10"))
