@@ -21,10 +21,6 @@ mkdir -p \
   "$OPENCLAW_DIR/logs" \
   "$OPENCLAW_DIR/canvas"
 
-# ── 3. 运行 doctor --fix 自动修复配置 ─────────────────────────
-echo "[entrypoint] 运行 openclaw doctor --fix ..."
-openclaw doctor --fix || true
-
-# ── 4. 启动 Gateway ──────────────────────────────────────────
+# ── 3. 启动 Gateway ──────────────────────────────────────────
 echo "[entrypoint] 启动 openclaw gateway ..."
 exec openclaw gateway run
