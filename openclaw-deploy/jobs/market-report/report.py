@@ -185,22 +185,26 @@ def fetch_fear_greed():
 
 
 def fetch_sectors():
-    """yfinance：11 个 SPDR 板块 ETF"""
+    """新浪财经：11 个 SPDR 板块 ETF"""
     results = {}
     syms = list(SECTOR_ETFS.values())
     try:
-        data = yf.download(syms, period="5d", interval="1d", auto_adjust=True,
-                           progress=False, threads=True)
-        close = data["Close"].dropna(how="all")
-        if len(close) >= 2:
-            prev = close.iloc[-2]
-            last = close.iloc[-1]
-            for name, sym in SECTOR_ETFS.items():
-                if sym in close.columns and pd.notna(prev[sym]) and pd.notna(last[sym]):
-                    results[name] = {
-                        "etf":        sym,
-                        "change_pct": float((last[sym] - prev[sym]) / prev[sym] * 100),
-                    }
+        codes = ",".join("gb_" + s.lower() for s in syms)
+        resp = requests.get(f"http://hq.sinajs.cn/list={codes}", headers=SINA_HEADERS, timeout=15)
+        resp.encoding = "gbk"
+        for name, sym in SECTOR_ETFS.items():
+            code = "gb_" + sym.lower()
+            m = re.search(rf'hq_str_{re.escape(code)}="([^"]*)"', resp.text)
+            if m and m.group(1):
+                fields = m.group(1).split(",")
+                if len(fields) >= 3 and fields[2]:
+                    try:
+                        results[name] = {
+                            "etf": sym,
+                            "change_pct": float(fields[2]),
+                        }
+                    except ValueError:
+                        pass
     except Exception as e:
         print(f"  ⚠️ 板块数据: {e}")
     return results
