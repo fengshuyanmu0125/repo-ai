@@ -11,25 +11,26 @@
   },
   "auth": {
     "profiles": {
-      "openrouter:default": {
-        "provider": "openrouter",
-        "mode": "api_key"
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "api_key",
+        "apiKey": "${ANTHROPIC_API_KEY}",
+        "baseUrl": "${ANTHROPIC_BASE_URL}"
       }
     }
   },
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/auto",
+        "primary": "anthropic/claude-sonnet-4-20250514",
         "fallbacks": [
-          "openrouter/auto"
+          "anthropic/claude-sonnet-4-20250514"
         ]
       },
       "models": {
-        "openrouter/auto": {
-          "alias": "OpenRouter"
-        },
-        "openrouter/openrouter/auto": {}
+        "anthropic/claude-sonnet-4-20250514": {
+          "alias": "Claude Sonnet"
+        }
       },
       "compaction": {
         "mode": "safeguard"
