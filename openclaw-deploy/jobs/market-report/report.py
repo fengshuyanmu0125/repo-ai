@@ -354,22 +354,22 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """OKX API：BTC / ETH / SOL（免费，无 key，国内可访问）"""
+    """火币 API：BTC / ETH / SOL（免费，无 key，国内可访问）"""
     try:
         result = {}
-        symbols = {"BTC": "BTC-USDT", "ETH": "ETH-USDT", "SOL": "SOL-USDT"}
-        for name, inst_id in symbols.items():
+        symbols = {"BTC": "btcusdt", "ETH": "ethusdt", "SOL": "solusdt"}
+        for name, symbol in symbols.items():
             r = requests.get(
-                "https://www.okx.com/api/v5/market/ticker",
-                params={"instId": inst_id},
+                "https://api.huobi.pro/market/detail/merged",
+                params={"symbol": symbol},
                 timeout=10,
             )
             data = r.json()
-            if data.get("data"):
-                d = data["data"][0]
-                price = float(d["last"])
-                open_24h = float(d["open24h"])
-                change_pct = (price - open_24h) / open_24h * 100
+            if data.get("status") == "ok" and data.get("tick"):
+                tick = data["tick"]
+                price = float(tick["close"])
+                open_price = float(tick["open"])
+                change_pct = (price - open_price) / open_price * 100
                 result[name] = {"price": price, "change_pct": change_pct}
         return result if result else None
     except Exception as e:
