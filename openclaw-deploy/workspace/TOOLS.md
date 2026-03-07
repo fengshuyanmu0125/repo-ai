@@ -37,9 +37,26 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 
 ---
 
+### exec 工具
+
+本地 gateway 支持 `exec` 工具，可以执行 shell 命令。用法：
+- tool: `exec`
+- host: `gateway`
+- command: 要执行的命令
+
+示例：
+```
+exec(host="gateway", command="python3 /root/.openclaw/plugins/stock-query/query.py NVDA")
+```
+
 ### /finance 行情查询
 
-用户发 `/finance NVDA` 或 `/finance market` 时：**必须用 exec 工具**在 gateway 上执行 Python（本机已装 yfinance），**禁止**使用网页搜索、Brave API 或任何联网查行情。直接运行 skill 里给出的 Python 脚本即可。
+用户发 `/finance NVDA` 时，使用 exec 工具执行：
+```
+python3 /root/.openclaw/plugins/stock-query/query.py NVDA
+```
+
+脚本会输出飞书卡片 JSON，然后用 feishu_chat 的 send_interactive_message 发送。
 
 ---
 
