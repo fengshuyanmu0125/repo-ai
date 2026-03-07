@@ -81,18 +81,5 @@
         "enabled": true
       }
     }
-  },
-  "mcp": {
-    "servers": {
-      "us-market": {
-        "command": "python3",
-        "args": [
-          "/root/.openclaw/plugins/us-market/server.py"
-        ],
-        "env": {
-          "FINNHUB_TOKEN": "${FINNHUB_API_KEY}"
-        }
-      }
-    }
   }
 }
