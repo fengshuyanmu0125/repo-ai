@@ -14,8 +14,8 @@
       "anthropic:default": {
         "provider": "anthropic",
         "mode": "api_key",
-        "apiKey": "${ANTHROPIC_API_KEY}",
-        "baseUrl": "${ANTHROPIC_BASE_URL}"
+        "api_key": "${ANTHROPIC_API_KEY}",
+        "base_url": "${ANTHROPIC_BASE_URL}"
       }
     }
   },
