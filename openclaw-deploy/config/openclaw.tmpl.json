@@ -70,7 +70,7 @@
           "appSecret": "${FEISHU_APP_SECRET}"
         },
         "default": {
-          "dmPolicy": "allowlist"
+          "dmPolicy": "allow"
         }
       }
     }
