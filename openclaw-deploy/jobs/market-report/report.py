@@ -61,9 +61,9 @@ INDEX_TICKERS_SINA = {
     "S&P 500": "gb_$inx",
     "NASDAQ":  "gb_ixic",
     "DOW":     "gb_dji",
-    "VIX":     "gb_vxx",      # VXX ETF 替代 VIX 指数
-    "10Y":     "gb_tlt",      # TLT ETF 替代 10Y 国债收益率
-    "DXY":     "gb_uup",      # UUP ETF 替代美元指数
+    "VIX":     "hf_VX",       # VIX 期货（真实 VIX 值）
+    "DXY":     "DINIW",       # 美元指数（真实 DXY 值）
+    "10Y":     "gb_tlt",      # TLT ETF（10Y 国债无直接源）
 }
 
 # yfinance 配置（海外服务器可用）
@@ -161,15 +161,27 @@ def fetch_indices():
             m = re.search(rf'hq_str_{re.escape(code)}="([^"]*)"', resp.text)
             if m and m.group(1):
                 fields = m.group(1).split(",")
-                if len(fields) >= 3 and fields[1] and fields[2]:
-                    try:
+                try:
+                    # 不同代码格式不同
+                    if code == "hf_VX":  # VIX 期货：[0]=价格 [7]=前收盘
+                        value = float(fields[0])
+                        prev = float(fields[7]) if len(fields) > 7 and fields[7] else value
+                        change_pct = (value - prev) / prev * 100 if prev else 0
+                    elif code == "DINIW":  # 美元指数：[1]=价格 [7]=前收盘
+                        value = float(fields[1])
+                        prev = float(fields[7]) if len(fields) > 7 and fields[7] else value
+                        change_pct = (value - prev) / prev * 100 if prev else 0
+                    elif len(fields) >= 3 and fields[1] and fields[2]:
                         value = float(fields[1])
                         change_pct = float(fields[2])
-                        results[name] = {"value": value, "change_pct": change_pct}
-                    except ValueError:
-                        pass
+                    else:
+                        continue
+                    results[name] = {"value": value, "change_pct": change_pct}
+                except (ValueError, IndexError):
+                    pass
     except Exception as e:
         print(f"  ⚠️ 新浪指数: {e}")
+    return results
     return results
 
 
@@ -186,7 +198,28 @@ CNN_HEADERS = {
 
 
 def fetch_fear_greed():
-    """CNN Fear & Greed Index"""
+    """贪恐指数：优先 Alternative.me（国内可访问），备选 CNN"""
+    # 1. Alternative.me（加密市场贪恐，但可反映整体情绪）
+    try:
+        r = requests.get("https://api.alternative.me/fng/?limit=1", timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            fg = data["data"][0]
+            score = int(fg["value"])
+            rating = fg["value_classification"]
+            # 转换英文评级为中文
+            rating_cn = {
+                "Extreme Fear": "极度恐惧",
+                "Fear": "恐惧",
+                "Neutral": "中性",
+                "Greed": "贪婪",
+                "Extreme Greed": "极度贪婪",
+            }.get(rating, rating)
+            return {"score": score, "rating": rating_cn}
+    except Exception as e:
+        print(f"  ⚠️ Alternative.me: {e}")
+
+    # 2. CNN（备选，国内可能无法访问）
     try:
         r = requests.get(
             "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
@@ -195,7 +228,7 @@ def fetch_fear_greed():
         fg = r.json().get("fear_and_greed", {})
         return {"score": round(fg.get("score", 50)), "rating": fg.get("rating", "Neutral")}
     except Exception as e:
-        print(f"  ⚠️ 贪恐指数: {e}")
+        print(f"  ⚠️ CNN: {e}")
         return None
 
 
@@ -910,12 +943,11 @@ def build_message(quotes, trade_date, weekday_en, analysis, news_map,
         if idx_cols:
             col_set(idx_cols)
 
-        # 情绪指标：VIX(VXX) | 贪/恐 | 10Y债+DXY
+        # 情绪指标：VIX | 贪/恐 | 10Y债+DXY
         vix_content = fg_content = bonds_content = None
         if "VIX" in indices:
-            vix = indices["VIX"]
-            # VXX 是 ETF，显示涨跌幅而非绝对值
-            vix_content = f"**VXX**\n{pct_color(vix['change_pct'])}"
+            vix = indices["VIX"]["value"]
+            vix_content = f"**VIX**\n{vix:.1f} {vix_label(vix)}"
         if fear_greed:
             fg_content = f"**贪/恐**\n{fg_label(fear_greed['score'])}"
         bonds_parts = []
@@ -923,8 +955,9 @@ def build_message(quotes, trade_date, weekday_en, analysis, news_map,
             # TLT 是 ETF，显示涨跌幅
             bonds_parts.append(f"**TLT** {pct_color(indices['10Y']['change_pct'])}")
         if "DXY" in indices:
-            # UUP 是 ETF，显示涨跌幅
-            bonds_parts.append(f"**UUP** {pct_color(indices['DXY']['change_pct'])}")
+            # 真实美元指数
+            dxy = indices["DXY"]["value"]
+            bonds_parts.append(f"**DXY** {dxy:.1f}")
         if bonds_parts:
             bonds_content = "\n".join(bonds_parts)
 
