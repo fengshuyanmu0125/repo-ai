@@ -384,8 +384,29 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """加密货币行情：优先 CoinGecko，备选火币"""
-    # 尝试 CoinGecko（全球可用）
+    """加密货币行情：优先 OKX（国内可访问），备选 CoinGecko/火币"""
+    # 1. OKX API（国内直连）
+    try:
+        result = {}
+        coins = [("BTC", "BTC-USDT"), ("ETH", "ETH-USDT"), ("SOL", "SOL-USDT")]
+        for name, inst_id in coins:
+            r = requests.get(
+                f"https://www.okx.com/api/v5/market/ticker?instId={inst_id}",
+                timeout=10,
+            )
+            data = r.json()
+            if data.get("data"):
+                d = data["data"][0]
+                price = float(d["last"])
+                open24h = float(d["open24h"])
+                change_pct = (price - open24h) / open24h * 100
+                result[name] = {"price": price, "change_pct": change_pct}
+        if result:
+            return result
+    except Exception as e:
+        print(f"  ⚠️ OKX: {e}")
+
+    # 2. CoinGecko（全球可用）
     try:
         r = requests.get(
             "https://api.coingecko.com/api/v3/simple/price",
@@ -402,7 +423,7 @@ def fetch_crypto():
     except Exception as e:
         print(f"  ⚠️ CoinGecko: {e}")
 
-    # 备选：火币 API
+    # 3. 火币 API
     try:
         result = {}
         symbols = {"BTC": "btcusdt", "ETH": "ethusdt", "SOL": "solusdt"}
