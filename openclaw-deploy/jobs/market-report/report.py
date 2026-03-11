@@ -364,38 +364,38 @@ def fetch_analyst_ratings(symbols):
 
 
 def fetch_upcoming_earnings(symbols, trade_date_str):
-    """yfinance：未来7天财报日历"""
+    """Alpha Vantage：未来财报日历（国内可访问）"""
+    import csv
+    from io import StringIO
+
     upcoming = []
     try:
-        trade_dt  = datetime.strptime(trade_date_str, "%Y-%m-%d").date()
-        deadline  = trade_dt + timedelta(days=7)
-        for sym in symbols:
-            try:
-                cal = yf.Ticker(sym).calendar
-                if cal is None:
-                    continue
-                earn = None
-                if isinstance(cal, dict):
-                    earn = cal.get("Earnings Date")
-                elif hasattr(cal, "get"):
-                    earn = cal.get("Earnings Date")
-                if earn is None:
-                    continue
-                if isinstance(earn, (list, tuple)):
-                    earn = earn[0]
-                if hasattr(earn, "date"):
-                    earn = earn.date()
-                elif isinstance(earn, str):
-                    earn = datetime.strptime(earn[:10], "%Y-%m-%d").date()
-                if trade_dt <= earn <= deadline:
-                    upcoming.append({
-                        "symbol": sym,
-                        "name":   CN_NAMES.get(sym, sym),
-                        "date":   str(earn),
-                    })
-                time.sleep(0.1)
-            except:
-                pass
+        trade_dt = datetime.strptime(trade_date_str, "%Y-%m-%d").date()
+        deadline = trade_dt + timedelta(days=14)  # 扩大到14天
+
+        # Alpha Vantage 免费 API
+        r = requests.get(
+            "https://www.alphavantage.co/query",
+            params={"function": "EARNINGS_CALENDAR", "horizon": "3month", "apikey": "demo"},
+            timeout=15,
+        )
+        if r.status_code == 200 and r.text.strip():
+            reader = csv.DictReader(StringIO(r.text))
+            symbols_set = set(symbols)
+            for row in reader:
+                sym = row.get("symbol", "")
+                report_date_str = row.get("reportDate", "")
+                if sym in symbols_set and report_date_str:
+                    try:
+                        report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
+                        if trade_dt <= report_date <= deadline:
+                            upcoming.append({
+                                "symbol": sym,
+                                "name": CN_NAMES.get(sym, row.get("name", sym)[:15]),
+                                "date": report_date_str,
+                            })
+                    except ValueError:
+                        pass
     except Exception as e:
         print(f"  ⚠️ 财报日历: {e}")
     return sorted(upcoming, key=lambda x: x["date"])
