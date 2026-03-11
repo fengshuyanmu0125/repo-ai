@@ -37,6 +37,7 @@ FEISHU_RECEIVE_ID = os.environ["FEISHU_RECEIVE_ID"]
 ANTHROPIC_TOKEN   = os.environ["ANTHROPIC_AUTH_TOKEN"]
 ANTHROPIC_URL     = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 FINNHUB_TOKEN     = os.environ["FINNHUB_API_KEY"]
+TIINGO_TOKEN      = os.environ.get("TIINGO_TOKEN", "")
 TOP_N             = int(os.environ.get("TOP_N", "10"))
 
 MAG7 = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA"]
@@ -368,13 +369,35 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """加密货币行情：用 curl 获取 Gate.io（绕过网络限制）"""
-    import subprocess
+    """加密货币行情：优先 Tiingo，备选 curl+Gate.io"""
+    # 1. Tiingo API（需要 token）
+    if TIINGO_TOKEN:
+        try:
+            headers = {"Authorization": f"Token {TIINGO_TOKEN}", "Content-Type": "application/json"}
+            result = {}
+            for name, ticker in [("BTC", "btcusd"), ("ETH", "ethusd"), ("SOL", "solusd")]:
+                r = requests.get(
+                    f"https://api.tiingo.com/tiingo/crypto/prices?tickers={ticker}",
+                    headers=headers, timeout=10,
+                )
+                data = r.json()
+                if data and data[0].get("priceData"):
+                    prices = data[0]["priceData"]
+                    if len(prices) >= 2:
+                        latest = prices[-1]
+                        prev = prices[-2]
+                        price = float(latest["close"])
+                        change_pct = (price - float(prev["close"])) / float(prev["close"]) * 100
+                        result[name] = {"price": price, "change_pct": change_pct}
+            if result:
+                return result
+        except Exception as e:
+            print(f"  ⚠️ Tiingo: {e}")
 
-    # Gate.io API（用 curl 绕过 Python requests 限制）
+    # 2. curl + Gate.io（绕过网络限制）
+    import subprocess
     coins = [("BTC", "BTC_USDT"), ("ETH", "ETH_USDT"), ("SOL", "SOL_USDT")]
     result = {}
-
     for name, pair in coins:
         try:
             proc = subprocess.run(
@@ -395,7 +418,7 @@ def fetch_crypto():
     if result:
         return result
 
-    # 备选：OKX
+    # 3. OKX 备选
     try:
         for name, inst_id in [("BTC", "BTC-USDT"), ("ETH", "ETH-USDT"), ("SOL", "SOL-USDT")]:
             r = requests.get(f"https://www.okx.com/api/v5/market/ticker?instId={inst_id}", timeout=10)
