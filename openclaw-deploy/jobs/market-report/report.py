@@ -55,6 +55,14 @@ SP100 = [
     "USB", "PNC", "WM", "ITW", "EMR", "APD", "MCO", "KLAC", "ANET",
 ]
 
+# 新浪财经指数代码（国内直连）- 仅三大指数
+INDEX_TICKERS_SINA = {
+    "S&P 500": "gb_$inx",
+    "NASDAQ":  "gb_ixic",
+    "DOW":     "gb_dji",
+}
+
+# yfinance 配置（海外服务器可用）
 INDEX_TICKERS = {
     "S&P 500": "^GSPC",
     "NASDAQ":  "^IXIC",
@@ -139,22 +147,44 @@ def get_trade_date(quotes):
 
 
 def fetch_indices():
-    """yfinance：主要市场指数（逐个容错）"""
+    """指数数据：新浪（主要指数）+ yfinance（VIX/DXY/10Y 可选）"""
     results = {}
-    for name, sym in INDEX_TICKERS.items():
+
+    # 1. 新浪财经：三大指数（国内直连，必成功）
+    codes = ",".join(INDEX_TICKERS_SINA.values())
+    try:
+        resp = requests.get(f"http://hq.sinajs.cn/list={codes}", headers=SINA_HEADERS, timeout=15)
+        resp.encoding = "gbk"
+        for name, code in INDEX_TICKERS_SINA.items():
+            m = re.search(rf'hq_str_{re.escape(code)}="([^"]*)"', resp.text)
+            if m and m.group(1):
+                fields = m.group(1).split(",")
+                if len(fields) >= 3 and fields[1] and fields[2]:
+                    try:
+                        value = float(fields[1])
+                        change_pct = float(fields[2])
+                        results[name] = {"value": value, "change_pct": change_pct}
+                    except ValueError:
+                        pass
+    except Exception as e:
+        print(f"  ⚠️ 新浪指数: {e}")
+
+    # 2. yfinance：VIX/DXY/10Y（可选，海外服务器可用）
+    extra_tickers = {"VIX": "^VIX", "DXY": "DX-Y.NYB", "10Y": "^TNX"}
+    for name, sym in extra_tickers.items():
+        if name in results:
+            continue
         try:
             hist = yf.Ticker(sym).history(period="5d")
             hist = hist[hist["Close"].notna()]
             if len(hist) >= 2:
                 prev = float(hist["Close"].iloc[-2])
                 last = float(hist["Close"].iloc[-1])
-                results[name] = {
-                    "value":      last,
-                    "change_pct": (last - prev) / prev * 100,
-                }
-            time.sleep(0.15)
-        except Exception as e:
-            print(f"  ⚠️ 指数 [{sym}]: {e}")
+                results[name] = {"value": last, "change_pct": (last - prev) / prev * 100}
+            time.sleep(0.1)
+        except Exception:
+            pass  # 静默失败，不影响主流程
+
     return results
 
 
@@ -354,7 +384,25 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """火币 API：BTC / ETH / SOL（免费，无 key，国内可访问）"""
+    """加密货币行情：优先 CoinGecko，备选火币"""
+    # 尝试 CoinGecko（全球可用）
+    try:
+        r = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price",
+            params={"ids": "bitcoin,ethereum,solana", "vs_currencies": "usd", "include_24hr_change": "true"},
+            timeout=10,
+        )
+        data = r.json()
+        if data.get("bitcoin"):
+            return {
+                "BTC": {"price": data["bitcoin"]["usd"], "change_pct": data["bitcoin"].get("usd_24h_change", 0)},
+                "ETH": {"price": data["ethereum"]["usd"], "change_pct": data["ethereum"].get("usd_24h_change", 0)},
+                "SOL": {"price": data["solana"]["usd"], "change_pct": data["solana"].get("usd_24h_change", 0)},
+            }
+    except Exception as e:
+        print(f"  ⚠️ CoinGecko: {e}")
+
+    # 备选：火币 API
     try:
         result = {}
         symbols = {"BTC": "btcusdt", "ETH": "ethusdt", "SOL": "solusdt"}
