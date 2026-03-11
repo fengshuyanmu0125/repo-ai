@@ -55,11 +55,14 @@ SP100 = [
     "USB", "PNC", "WM", "ITW", "EMR", "APD", "MCO", "KLAC", "ANET",
 ]
 
-# 新浪财经指数代码（国内直连）- 仅三大指数
+# 新浪财经指数代码（国内直连）
 INDEX_TICKERS_SINA = {
     "S&P 500": "gb_$inx",
     "NASDAQ":  "gb_ixic",
     "DOW":     "gb_dji",
+    "VIX":     "gb_vxx",      # VXX ETF 替代 VIX 指数
+    "10Y":     "gb_tlt",      # TLT ETF 替代 10Y 国债收益率
+    "DXY":     "gb_uup",      # UUP ETF 替代美元指数
 }
 
 # yfinance 配置（海外服务器可用）
@@ -147,10 +150,8 @@ def get_trade_date(quotes):
 
 
 def fetch_indices():
-    """指数数据：新浪（主要指数）+ yfinance（VIX/DXY/10Y 可选）"""
+    """新浪财经：指数数据（国内直连）"""
     results = {}
-
-    # 1. 新浪财经：三大指数（国内直连，必成功）
     codes = ",".join(INDEX_TICKERS_SINA.values())
     try:
         resp = requests.get(f"http://hq.sinajs.cn/list={codes}", headers=SINA_HEADERS, timeout=15)
@@ -168,23 +169,6 @@ def fetch_indices():
                         pass
     except Exception as e:
         print(f"  ⚠️ 新浪指数: {e}")
-
-    # 2. yfinance：VIX/DXY/10Y（可选，海外服务器可用）
-    extra_tickers = {"VIX": "^VIX", "DXY": "DX-Y.NYB", "10Y": "^TNX"}
-    for name, sym in extra_tickers.items():
-        if name in results:
-            continue
-        try:
-            hist = yf.Ticker(sym).history(period="5d")
-            hist = hist[hist["Close"].notna()]
-            if len(hist) >= 2:
-                prev = float(hist["Close"].iloc[-2])
-                last = float(hist["Close"].iloc[-1])
-                results[name] = {"value": last, "change_pct": (last - prev) / prev * 100}
-            time.sleep(0.1)
-        except Exception:
-            pass  # 静默失败，不影响主流程
-
     return results
 
 
@@ -384,16 +368,37 @@ def fetch_upcoming_earnings(symbols, trade_date_str):
 
 
 def fetch_crypto():
-    """加密货币行情：优先 OKX（国内可访问），备选 CoinGecko/火币"""
-    # 1. OKX API（国内直连）
-    try:
-        result = {}
-        coins = [("BTC", "BTC-USDT"), ("ETH", "ETH-USDT"), ("SOL", "SOL-USDT")]
-        for name, inst_id in coins:
-            r = requests.get(
-                f"https://www.okx.com/api/v5/market/ticker?instId={inst_id}",
-                timeout=10,
+    """加密货币行情：用 curl 获取 Gate.io（绕过网络限制）"""
+    import subprocess
+
+    # Gate.io API（用 curl 绕过 Python requests 限制）
+    coins = [("BTC", "BTC_USDT"), ("ETH", "ETH_USDT"), ("SOL", "SOL_USDT")]
+    result = {}
+
+    for name, pair in coins:
+        try:
+            proc = subprocess.run(
+                ["curl", "-s", "--connect-timeout", "10", "--insecure",
+                 f"https://api.gateio.ws/api/v4/spot/tickers?currency_pair={pair}"],
+                capture_output=True, text=True, timeout=15,
             )
+            if proc.stdout.strip():
+                data = json.loads(proc.stdout)
+                if data and len(data) > 0:
+                    d = data[0]
+                    price = float(d["last"])
+                    change_pct = float(d.get("change_percentage", 0))
+                    result[name] = {"price": price, "change_pct": change_pct}
+        except Exception as e:
+            print(f"  ⚠️ Gate.io [{name}]: {e}")
+
+    if result:
+        return result
+
+    # 备选：OKX
+    try:
+        for name, inst_id in [("BTC", "BTC-USDT"), ("ETH", "ETH-USDT"), ("SOL", "SOL-USDT")]:
+            r = requests.get(f"https://www.okx.com/api/v5/market/ticker?instId={inst_id}", timeout=10)
             data = r.json()
             if data.get("data"):
                 d = data["data"][0]
@@ -406,44 +411,7 @@ def fetch_crypto():
     except Exception as e:
         print(f"  ⚠️ OKX: {e}")
 
-    # 2. CoinGecko（全球可用）
-    try:
-        r = requests.get(
-            "https://api.coingecko.com/api/v3/simple/price",
-            params={"ids": "bitcoin,ethereum,solana", "vs_currencies": "usd", "include_24hr_change": "true"},
-            timeout=10,
-        )
-        data = r.json()
-        if data.get("bitcoin"):
-            return {
-                "BTC": {"price": data["bitcoin"]["usd"], "change_pct": data["bitcoin"].get("usd_24h_change", 0)},
-                "ETH": {"price": data["ethereum"]["usd"], "change_pct": data["ethereum"].get("usd_24h_change", 0)},
-                "SOL": {"price": data["solana"]["usd"], "change_pct": data["solana"].get("usd_24h_change", 0)},
-            }
-    except Exception as e:
-        print(f"  ⚠️ CoinGecko: {e}")
-
-    # 3. 火币 API
-    try:
-        result = {}
-        symbols = {"BTC": "btcusdt", "ETH": "ethusdt", "SOL": "solusdt"}
-        for name, symbol in symbols.items():
-            r = requests.get(
-                "https://api.huobi.pro/market/detail/merged",
-                params={"symbol": symbol},
-                timeout=10,
-            )
-            data = r.json()
-            if data.get("status") == "ok" and data.get("tick"):
-                tick = data["tick"]
-                price = float(tick["close"])
-                open_price = float(tick["open"])
-                change_pct = (price - open_price) / open_price * 100
-                result[name] = {"price": price, "change_pct": change_pct}
-        return result if result else None
-    except Exception as e:
-        print(f"  ⚠️ 加密行情: {e}")
-        return None
+    return None
 
 
 def fetch_macro_calendar():
@@ -919,18 +887,21 @@ def build_message(quotes, trade_date, weekday_en, analysis, news_map,
         if idx_cols:
             col_set(idx_cols)
 
-        # 情绪指标：VIX | 贪/恐 | 10Y债+DXY
+        # 情绪指标：VIX(VXX) | 贪/恐 | 10Y债+DXY
         vix_content = fg_content = bonds_content = None
         if "VIX" in indices:
-            vix = indices["VIX"]["value"]
-            vix_content = f"**VIX**\n{vix:.1f} {vix_label(vix)}"
+            vix = indices["VIX"]
+            # VXX 是 ETF，显示涨跌幅而非绝对值
+            vix_content = f"**VXX**\n{pct_color(vix['change_pct'])}"
         if fear_greed:
             fg_content = f"**贪/恐**\n{fg_label(fear_greed['score'])}"
         bonds_parts = []
         if "10Y" in indices:
-            bonds_parts.append(f"**10Y债** {indices['10Y']['value']:.2f}%")
+            # TLT 是 ETF，显示涨跌幅
+            bonds_parts.append(f"**TLT** {pct_color(indices['10Y']['change_pct'])}")
         if "DXY" in indices:
-            bonds_parts.append(f"**DXY** {indices['DXY']['value']:.1f}")
+            # UUP 是 ETF，显示涨跌幅
+            bonds_parts.append(f"**UUP** {pct_color(indices['DXY']['change_pct'])}")
         if bonds_parts:
             bonds_content = "\n".join(bonds_parts)
 
