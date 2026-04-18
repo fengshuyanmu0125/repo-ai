@@ -19,8 +19,11 @@ RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.co
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Python 依赖（MCP server us-market + finance skill）
+# Python 依赖（增加超时和重试，使用清华镜像加速）
 RUN pip install --no-cache-dir \
+    --timeout 300 \
+    --retries 5 \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
     yfinance \
     pandas \
     requests \
