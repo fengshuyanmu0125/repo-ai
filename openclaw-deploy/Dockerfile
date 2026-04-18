@@ -30,8 +30,9 @@ RUN pip install --no-cache-dir \
     mcp \
     fastmcp
 
-# 安装 openclaw（当前正式包名）
-RUN npm install -g openclaw
+# 安装 openclaw（使用国内镜像加速）
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install -g openclaw
 
 # ── 复制配置到 openclaw 目录 ───────────────────────────────────
 WORKDIR /root/.openclaw
