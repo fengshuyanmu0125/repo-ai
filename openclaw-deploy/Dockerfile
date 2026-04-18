@@ -1,14 +1,19 @@
 FROM node:22-slim
 
-# 系统依赖：Python3（MCP server）+ envsubst（配置模板替换）+ curl
+# 系统依赖：Python3（MCP server）+ envsubst（配置模板替换）+ curl + openssh-client
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
+    openssh-client \
     gettext-base \
     python3 \
     python3-pip \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# 配置 git 使用 https 替代 ssh（避免 ssh 认证问题）
+RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && \
+    git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 # Python 虚拟环境（避免 externally-managed-environment 报错）
 RUN python3 -m venv /opt/venv
