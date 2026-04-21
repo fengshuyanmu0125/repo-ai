@@ -1,37 +1,30 @@
+# syntax=docker/dockerfile:1
 FROM node:22-slim
 
-# 系统依赖：Python3（MCP server）+ envsubst（配置模板替换）+ curl + openssh-client
+# 系统依赖（单层合并，利用缓存）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    git \
-    openssh-client \
-    gettext-base \
-    python3 \
-    python3-pip \
-    python3-venv \
+    curl git openssh-client gettext-base \
+    python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# 配置 git 使用 https 替代 ssh（避免 ssh 认证问题）
+# git https 替代 ssh
 RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && \
     git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-# Python 虚拟环境（避免 externally-managed-environment 报错）
+# Python 虚拟环境
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Python 依赖（增加超时和重试，使用清华镜像加速）
-RUN pip install --no-cache-dir \
-    --timeout 300 \
-    --retries 5 \
+# Python 依赖（使用 BuildKit 缓存挂载）
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install \
+    --timeout 300 --retries 5 \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    yfinance \
-    pandas \
-    requests \
-    mcp \
-    fastmcp
+    yfinance pandas requests mcp fastmcp
 
-# 安装 openclaw（使用国内镜像加速）
-RUN npm config set registry https://registry.npmmirror.com && \
+# npm 全局安装 openclaw（使用 BuildKit 缓存挂载）
+RUN npm config set registry https://registry.npmmirror.com
+RUN --mount=type=cache,target=/root/.npm \
     npm install -g openclaw
 
 # ── 复制配置到 openclaw 目录 ───────────────────────────────────
